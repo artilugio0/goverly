@@ -1,73 +1,106 @@
 package main
 
 import (
+	"math/rand/v2"
 	"strconv"
 	"syscall/js"
 	"time"
 )
 
-const cRadius int = 10
-const textSize int = 30
 const border int = 0
-const canvasWidth int = 1920 - 2*border
-const canvasHeight int = 1080 - 2*border
-const text string = "Hoy: PoC overlay de OBS para el stream - [Golang + WebAssembly]"
-const marginBottom = 10
-const marginLeft = 50
-const textAreaHeight int = 109
+const svgWidth int = 1920 - 2*border
+const svgHeight int = 1080 - 2*border
 
 func main() {
 	document := js.Global().Get("document")
+	body := document.Get("body")
 
-	canvas := document.Call("createElement", "canvas")
-	canvas.Set("id", "game-canvas")
+	svg := document.Call("createElementNS", "http://www.w3.org/2000/svg", "svg")
+	svg.Call("setAttribute", "height", strconv.Itoa(svgHeight))
+	svg.Call("setAttribute", "width", strconv.Itoa(svgWidth))
 
-	canvas.Set("width", strconv.Itoa(canvasWidth))
-	canvas.Set("height", strconv.Itoa(canvasHeight))
+	svgStyle := svg.Get("style")
+	svgStyle.Set("border", strconv.Itoa(border)+"px solid red")
+	body.Call("appendChild", svg)
 
-	canvasStyle := canvas.Get("style")
-	canvasStyle.Set("border", strconv.Itoa(border)+"px solid red")
-
-	document.Get("body").Call("appendChild", canvas)
-
-	ctx := canvas.Call("getContext", "2d")
-
-	x, y := canvasWidth/2, canvasHeight/2
-	onClick := func(this js.Value, args []js.Value) interface{} {
-		e := args[0]
-		x = e.Get("clientX").Int()
-		y = e.Get("clientY").Int()
-		return nil
+	widgets := []Widget{
+		newCircle(),
+		newText("Hoy: Browser overlay para OBS usando Golang + WebAssembly"),
 	}
 
-	canvas.Call("addEventListener", "click", js.FuncOf(onClick))
-
 	for {
-		x = (x + 11) % canvasWidth
-		y = (y + 11) % canvasHeight
-
-		draw(ctx, x, y)
+		for _, w := range widgets {
+			w(svg)
+		}
 
 		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-func draw(ctx js.Value, x int, y int) {
-	width := js.Global().Get("innerWidth").Int()
-	height := js.Global().Get("innerHeight").Int()
+type Widget func(svg js.Value)
 
-	ctx.Set("font", strconv.Itoa(textSize)+"px serif")
-	metrics := ctx.Call("measureText", text)
-	fontHeight := metrics.Get("actualBoundingBoxAscent").Int() + metrics.Get("actualBoundingBoxDescent").Int()
+func newId() string {
+	id := rand.Uint64()
+	return strconv.FormatUint(id, 16)
+}
 
-	ctx.Call("clearRect", 0, 0, width, height)
+func newCircle() Widget {
+	const cRadius int = 10
 
-	ctx.Call("beginPath")
-	ctx.Set("fillStyle", "lime")
-	ctx.Call("arc", x, y, cRadius, 0, js.Global().Get("Math").Get("PI").Float()*2)
-	ctx.Call("fill")
+	id := newId()
+	document := js.Global().Get("document")
+	x, y := 0, 0
 
-	ctx.Set("fillStyle", "white")
-	ctx.Set("font", strconv.Itoa(textSize)+"px Courier New")
-	ctx.Call("fillText", text, marginLeft, canvasHeight-(textAreaHeight-fontHeight)/2)
+	return func(svg js.Value) {
+		circle := document.Call("getElementById", id)
+
+		if circle.IsNull() {
+			circle = document.Call("createElementNS", "http://www.w3.org/2000/svg", "circle")
+			circle.Set("id", id)
+
+			circle.Call("setAttribute", "r", cRadius)
+			circle.Call("setAttribute", "r", cRadius)
+			circle.Call("setAttribute", "stroke", "lime")
+			circle.Call("setAttribute", "stroke-width", "4")
+			circle.Call("setAttribute", "fill", "yellow")
+			svg.Call("appendChild", circle)
+
+			x, y = svgWidth/2, svgHeight/2
+		}
+
+		x = (x + 11) % svgWidth
+		y = (y + 11) % svgHeight
+
+		circle.Call("setAttribute", "cx", x)
+		circle.Call("setAttribute", "cy", y)
+	}
+}
+
+func newText(text string) Widget {
+	const textSize int = 30
+	const textAreaHeight int = 109
+	const marginLeft = 50
+
+	id := newId()
+
+	return func(svg js.Value) {
+		document := js.Global().Get("document")
+		svgtext := document.Call("getElementById", id)
+		if !svgtext.IsNull() {
+			return
+		}
+
+		svgtext = document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
+		svgtext.Set("id", id)
+
+		svgtext.Call("setAttribute", "font-family", "Courier New")
+		svgtext.Call("setAttribute", "fill", "white")
+		svgtext.Call("setAttribute", "font-size", strconv.Itoa(textSize))
+		svgtext.Call("setAttribute", "x", marginLeft)
+		svgtext.Call("setAttribute", "y", svgHeight-(textAreaHeight-textSize)/2)
+
+		textnode := document.Call("createTextNode", text)
+		svgtext.Call("appendChild", textnode)
+		svg.Call("appendChild", svgtext)
+	}
 }
