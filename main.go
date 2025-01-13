@@ -12,6 +12,7 @@ import (
 const border int = 0
 const svgWidth int = 1920 - 2*border
 const svgHeight int = 1080 - 2*border
+const rate time.Duration = 10 * time.Millisecond
 
 func main() {
 	document := js.Global().Get("document")
@@ -28,11 +29,15 @@ func main() {
 	widgets := []Widget{
 		newCircle(),
 		newText("Hoy: Browser overlay para OBS usando Golang + WebAssembly"),
+		//newText("Break de 3 minutos, ya vuelvo!!!"),
+		//newCountdown(3 * time.Minute),
+		newCountdown(3 * time.Second),
 		newTodoList([]TodoListItem{
 			{"Remover IDs random de widgets", true},
 			{"Fix longitud de todo list item", true},
 			{"Crear widget de timer", false},
 			{"Hot reload basico", false},
+			{"Sacar coordenadas de widgets hardcodeadas", false},
 		}),
 	}
 
@@ -41,7 +46,7 @@ func main() {
 			w(svg)
 		}
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(rate)
 	}
 }
 
@@ -116,7 +121,7 @@ func newTodoList(items []TodoListItem) Widget {
 	const itemMarginBottom int = 5
 	const width int = 244 - marginLeft
 	const x int = 1920 - width
-	const y int = 1080 - 850
+	const y int = 1080 - 850 /* cam */ + 40 /* countdown */
 
 	document := js.Global().Get("document")
 
@@ -209,4 +214,73 @@ func newTodoList(items []TodoListItem) Widget {
 type TodoListItem struct {
 	Description string
 	Done        bool
+}
+
+func newCountdown(t time.Duration) Widget {
+	const textSize int = 40
+	const marginLeft int = 60
+	const width int = 244 - marginLeft
+	const x int = 1920 - width
+	const y int = 1080 - 850
+
+	document := js.Global().Get("document")
+
+	g := document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
+
+	timeText := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
+	timeText.Call("setAttribute", "font-family", "Courier New")
+	timeText.Call("setAttribute", "fill", "white")
+	timeText.Call("setAttribute", "font-size", textSize)
+	timeText.Call("setAttribute", "x", 0)
+	timeText.Call("setAttribute", "y", 0)
+	textnode := document.Call("createTextNode", "00:00")
+	timeText.Call("appendChild", textnode)
+	g.Call("appendChild", timeText)
+	g.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", x, y))
+
+	appended := false
+	angleMillis := 0
+	angles := []int{0, 5, 0, -5}
+	angleIndex := 0
+	passed := 0 * time.Second
+	return func(svg js.Value) {
+		if !appended {
+			svg.Call("appendChild", g)
+			appended = true
+		}
+		t -= rate
+		if t > 0 {
+			mins := int(t.Minutes())
+			secs := int(t.Seconds()) % 60
+			text := fmt.Sprintf("%02d:%02d", mins, secs)
+			textnode.Set("nodeValue", text)
+			return
+		}
+
+		// time is up
+
+		passed += rate
+		timeText.Call("setAttribute", "fill", "red")
+		mins := int(passed.Minutes())
+		secs := int(passed.Seconds()) % 60
+		text := fmt.Sprintf("%02d:%02d", mins, secs)
+		textnode.Set("nodeValue", text)
+
+		bbox := timeText.Call("getBBox")
+		timeTextWidth := bbox.Get("width").Int()
+
+		angleMillis += int(rate.Milliseconds())
+		if (angleMillis/1000)%2 == 0 {
+			if angleMillis%50 == 0 {
+				angleIndex = (angleIndex + 1) % len(angles)
+			}
+
+			transform := fmt.Sprintf("rotate(%d, %d, 0)", angles[angleIndex], timeTextWidth/2)
+			timeText.Call("setAttribute", "transform", transform)
+			return
+		}
+
+		transform := fmt.Sprintf("rotate(%d, %d, 0)", 0, timeTextWidth/2)
+		timeText.Call("setAttribute", "transform", transform)
+	}
 }
