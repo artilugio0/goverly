@@ -30,7 +30,7 @@ func main() {
 		newText("Hoy: Browser overlay para OBS usando Golang + WebAssembly"),
 		newTodoList([]TodoListItem{
 			{"Remover IDs random de widgets", true},
-			{"Fix longitud de todo list item", false},
+			{"Fix longitud de todo list item", true},
 			{"Crear widget de timer", false},
 			{"Hot reload basico", false},
 		}),
@@ -141,7 +141,7 @@ func newTodoList(items []TodoListItem) Widget {
 		lines := []string{}
 		index := 0
 		for i, f := range textFields {
-			if curWidth+len(f)*(textSize*70/100) > width-2 {
+			if curWidth+len(f)*(textSize*80/100) > width-2 {
 				if curWidth == 0 {
 					index = i + 1
 					if len(lines) == 0 {
@@ -163,7 +163,7 @@ func newTodoList(items []TodoListItem) Widget {
 				}
 			}
 
-			curWidth += len(f) * textSize
+			curWidth += len(f) * (textSize * 80 / 100)
 		}
 
 		if len(lines) == 0 {
