@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math/rand/v2"
+	"net/http"
 	"strconv"
 	"strings"
 	"syscall/js"
@@ -15,6 +17,8 @@ const svgHeight int = 1080 - 2*border
 const rate time.Duration = 10 * time.Millisecond
 
 func main() {
+	fmt.Println("starting")
+
 	document := js.Global().Get("document")
 	body := document.Get("body")
 
@@ -29,25 +33,85 @@ func main() {
 	widgets := []Widget{
 		newCircle(),
 		newText("Hoy: Browser overlay para OBS usando Golang + WebAssembly"),
+		//newCountdown(30 * time.Minute),
 		//newText("Break de 3 minutos, ya vuelvo!!!"),
 		//newCountdown(3 * time.Minute),
-		newCountdown(3 * time.Second),
 		newTodoList([]TodoListItem{
 			{"Remover IDs random de widgets", true},
 			{"Fix longitud de todo list item", true},
-			{"Crear widget de timer", false},
-			{"Hot reload basico", false},
+			{"Crear widget de timer", true},
+			{"Hot reload basico", true},
 			{"Sacar coordenadas de widgets hardcodeadas", false},
 		}),
 	}
 
-	for {
+	updateChan := make(chan bool)
+	go func() {
+		lastUpdate, err := getLastUpdate()
+		if err != nil {
+			panic(err)
+		}
+
+		for {
+			time.Sleep(1 * time.Second)
+
+			newUpdate, err := getLastUpdate()
+			if err != nil {
+				fmt.Printf("error while trying to get last update: %v\n", err)
+				continue
+			}
+
+			if newUpdate > lastUpdate {
+				lastUpdate = newUpdate
+				go func() {
+					updateChan <- true
+				}()
+				return
+			}
+		}
+	}()
+
+	update := false
+	for !update {
+		select {
+		case update = <-updateChan:
+			break
+		default:
+			break
+		}
+
 		for _, w := range widgets {
 			w(svg)
 		}
 
 		time.Sleep(rate)
 	}
+
+	svg.Call("remove")
+
+	execUpdate := js.Global().Get("runGo")
+	execUpdate.Call("call")
+	fmt.Println("exiting")
+}
+
+func getLastUpdate() (int64, error) {
+	resp, err := http.Get("/last-update")
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	lu, err := strconv.ParseInt(string(bodyBytes), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return lu, nil
 }
 
 type Widget func(svg js.Value)
@@ -66,9 +130,9 @@ func newCircle() Widget {
 	circle := document.Call("createElementNS", "http://www.w3.org/2000/svg", "circle")
 	circle.Call("setAttribute", "r", cRadius)
 	circle.Call("setAttribute", "r", cRadius)
-	circle.Call("setAttribute", "stroke", "lime")
+	circle.Call("setAttribute", "stroke", fmt.Sprintf("hsl(%d, 100%%, 50%%)", rand.Int()%361))
 	circle.Call("setAttribute", "stroke-width", "4")
-	circle.Call("setAttribute", "fill", "yellow")
+	circle.Call("setAttribute", "fill", fmt.Sprintf("hsl(%d, 100%%, 50%%)", rand.Int()%361))
 
 	x, y = svgWidth/2, svgHeight/2
 
