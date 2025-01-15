@@ -1,0 +1,58 @@
+{
+	"widgets": [
+		{
+			"type": "circle",
+			"widget": {
+				"x": 0,
+				"y": 0,
+				"stroke_hue": 120,
+				"fill_hue": 220,
+				"radius": 10,
+				"stroke_width": 4
+			}
+		},
+		{
+			"type": "text",
+			"widget": {
+				"text": "Hoy: Browser overlay para OBS usando Golang + WebAssembly",
+				"x": 50,
+				"y": 1020,
+				"font_family": "Courier New",
+				"font_fill": "white",
+				"font_size": 30
+			}
+		},
+		{
+			"type": "countdown",
+			"widget": {
+				"x": 1740,
+				"y": 230,
+				"font_family": "Courier New",
+				"font_fill": "white",
+				"font_size": 40,
+				"remaining": 3
+			}
+		},
+		{
+			"type": "todolist",
+			"widget": {
+				"x": 1685,
+				"y": 280,
+				"width": 230,
+				"font_size": 18,
+				"font_family": "Courier New",
+				"font_fill": "white",
+				"items": [
+					{
+						"description": "Extraer definiciones de widgets hardcodeadas",
+						"done":  false
+					},
+					{
+						"description": "Asignar IDs a widgets",
+						"done":  false
+					}
+				]
+			}
+		}
+	]
+}

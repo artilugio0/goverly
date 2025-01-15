@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,17 @@ const svgHeight int = 1080 - 2*border
 const rate time.Duration = 10 * time.Millisecond
 
 func main() {
+	resp, err := http.Get("/config")
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	config := Config{}
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		panic(err)
+	}
+
 	document := js.Global().Get("document")
 	body := document.Get("body")
 
@@ -25,23 +37,6 @@ func main() {
 	svgStyle := svg.Get("style")
 	svgStyle.Set("border", strconv.Itoa(border)+"px solid red")
 	body.Call("appendChild", svg)
-
-	widgets := []Widget{
-		NewCircle(10),
-		/*
-			NewText("Break de 3 minutos, ya vuelvo!!!", 30, 50, svgHeight-60),
-			NewCountdown(40, svgWidth-180, svgHeight-850, 3*time.Minute),
-		*/
-		NewText("Hoy: Browser overlay para OBS usando Golang + WebAssembly", 30, 50, svgHeight-60),
-		NewCountdown(40, svgWidth-180, svgHeight-850, 3*time.Second),
-		NewTodoList(
-			18, 230, svgWidth-235, svgHeight-800,
-			[]TodoListItem{
-				{"Conservar estado cuando se hace un hot reload", true},
-				{"Extraer definiciones de widgets hardcodeadas", false},
-			},
-		),
-	}
 
 	updateChan := make(chan bool)
 	go func() {
@@ -71,7 +66,7 @@ func main() {
 
 	update := false
 
-	loadAppState(widgets)
+	loadAppState(config.Widgets)
 	for !update {
 		select {
 		case update = <-updateChan:
@@ -80,13 +75,13 @@ func main() {
 			break
 		}
 
-		for _, w := range widgets {
+		for _, w := range config.Widgets {
 			w.Update(svg)
 		}
 
 		time.Sleep(rate)
 	}
-	saveAppState(widgets)
+	saveAppState(config.Widgets)
 
 	svg.Call("remove")
 

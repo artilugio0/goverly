@@ -16,7 +16,7 @@ type WidgetTodoList struct {
 	Width      int            `json:"width"`
 	FontSize   int            `json:"font_size"`
 	FontFamily string         `json:"font_family"`
-	Fill       string         `json:"fill"`
+	FontFill   string         `json:"font_fill"`
 	Items      []TodoListItem `json:"items"`
 }
 
@@ -30,7 +30,7 @@ func NewTodoList(textSize, width, x, y int, items []TodoListItem) *WidgetTodoLis
 		Items:      items,
 		FontSize:   textSize,
 		FontFamily: "Courier New",
-		Fill:       "white",
+		FontFill:   "white",
 		Width:      width,
 		X:          x,
 		Y:          y,
@@ -96,7 +96,7 @@ func (wtl *WidgetTodoList) Update(svg js.Value) {
 				lines = append(lines, strings.Join(textFields[index:], " "))
 			}
 
-			color := wtl.Fill
+			color := wtl.FontFill
 			if it.Done {
 				color = "lime"
 			}
@@ -134,11 +134,13 @@ func (wtl *WidgetTodoList) SaveState() js.Value {
 	}
 
 	state := map[string]interface{}{
-		"x":         wtl.X,
-		"y":         wtl.Y,
-		"width":     wtl.Width,
-		"text_size": wtl.FontSize,
-		"items":     string(itemsB),
+		"x":           wtl.X,
+		"y":           wtl.Y,
+		"width":       wtl.Width,
+		"font_size":   wtl.FontSize,
+		"font_family": wtl.FontFamily,
+		"font_fill":   wtl.FontFill,
+		"items":       string(itemsB),
 	}
 
 	return js.ValueOf(state)
@@ -148,7 +150,9 @@ func (wtl *WidgetTodoList) LoadState(state js.Value) {
 	wtl.X = state.Get("x").Int()
 	wtl.Y = state.Get("y").Int()
 	wtl.Width = state.Get("width").Int()
-	wtl.FontSize = state.Get("text_size").Int()
+	wtl.FontSize = state.Get("font_size").Int()
+	wtl.FontFamily = state.Get("font_family").String()
+	wtl.FontFill = state.Get("font_fill").String()
 	itemsS := state.Get("items").String()
 
 	if err := json.Unmarshal([]byte(itemsS), &wtl.Items); err != nil {
