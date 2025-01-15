@@ -159,6 +159,12 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 			}
 			w.FontSize = int(fontSize)
 
+			doneFontFill, ok := wObj["done_font_fill"].(string)
+			if !ok {
+				return fmt.Errorf("invalid value for 'done_font_fill' key in countdown. Found: '%+v'", wObj["done_font_fill"])
+			}
+			w.DoneFontFill = doneFontFill
+
 			remaining, ok := wObj["remaining"].(float64)
 			if !ok {
 				return fmt.Errorf("invalid value for 'remaining' key in countdown. Found: '%+v'", wObj["remaining"])

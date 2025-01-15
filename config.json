@@ -5,10 +5,10 @@
 			"widget": {
 				"x": 0,
 				"y": 0,
-				"stroke_hue": 120,
-				"fill_hue": 220,
-				"radius": 10,
-				"stroke_width": 4
+				"stroke_hue": 220,
+				"fill_hue": 60,
+				"radius": 15,
+				"stroke_width": 5
 			}
 		},
 		{
@@ -29,6 +29,7 @@
 				"y": 230,
 				"font_family": "Courier New",
 				"font_fill": "white",
+				"done_font_fill": "violet",
 				"font_size": 40,
 				"remaining": 3
 			}
@@ -45,7 +46,7 @@
 				"items": [
 					{
 						"description": "Extraer definiciones de widgets hardcodeadas",
-						"done":  false
+						"done":  true
 					},
 					{
 						"description": "Asignar IDs a widgets",

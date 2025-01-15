@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"syscall/js"
@@ -128,34 +127,10 @@ func (wtl *WidgetTodoList) Update(svg js.Value) {
 }
 
 func (wtl *WidgetTodoList) SaveState() js.Value {
-	itemsB, err := json.Marshal(wtl.Items)
-	if err != nil {
-		panic(err)
-	}
-
-	state := map[string]interface{}{
-		"x":           wtl.X,
-		"y":           wtl.Y,
-		"width":       wtl.Width,
-		"font_size":   wtl.FontSize,
-		"font_family": wtl.FontFamily,
-		"font_fill":   wtl.FontFill,
-		"items":       string(itemsB),
-	}
+	state := map[string]interface{}{}
 
 	return js.ValueOf(state)
 }
 
 func (wtl *WidgetTodoList) LoadState(state js.Value) {
-	wtl.X = state.Get("x").Int()
-	wtl.Y = state.Get("y").Int()
-	wtl.Width = state.Get("width").Int()
-	wtl.FontSize = state.Get("font_size").Int()
-	wtl.FontFamily = state.Get("font_family").String()
-	wtl.FontFill = state.Get("font_fill").String()
-	itemsS := state.Get("items").String()
-
-	if err := json.Unmarshal([]byte(itemsS), &wtl.Items); err != nil {
-		panic(err)
-	}
 }

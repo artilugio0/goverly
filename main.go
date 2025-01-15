@@ -16,14 +16,8 @@ const svgHeight int = 1080 - 2*border
 const rate time.Duration = 10 * time.Millisecond
 
 func main() {
-	resp, err := http.Get("/config")
+	config, err := getConfig()
 	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	config := Config{}
-	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
 		panic(err)
 	}
 
@@ -38,7 +32,7 @@ func main() {
 	svgStyle.Set("border", strconv.Itoa(border)+"px solid red")
 	body.Call("appendChild", svg)
 
-	updateChan := make(chan bool)
+	appUpdateAvailableChan := make(chan bool)
 	go func() {
 		lastUpdate, err := getLastUpdate()
 		if err != nil {
@@ -57,31 +51,49 @@ func main() {
 			if newUpdate > lastUpdate {
 				lastUpdate = newUpdate
 				go func() {
-					updateChan <- true
+					appUpdateAvailableChan <- true
 				}()
 				return
 			}
 		}
 	}()
 
-	update := false
+	configUpdateChan := make(chan *Config)
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
 
-	loadAppState(config.Widgets)
-	for !update {
+			newConfig, err := getConfig()
+			if err != nil {
+				fmt.Printf("error while trying to get new config: %v\n", err)
+				continue
+			}
+
+			configUpdateChan <- newConfig
+		}
+	}()
+
+	appUpdateAvailable := false
+
+	widgets := config.Widgets
+	loadAppState(widgets)
+	for !appUpdateAvailable {
 		select {
-		case update = <-updateChan:
+		case appUpdateAvailable = <-appUpdateAvailableChan:
 			break
+		case newConfig := <-configUpdateChan:
+			updateWidgets(widgets, newConfig.Widgets)
 		default:
 			break
 		}
 
-		for _, w := range config.Widgets {
+		for _, w := range widgets {
 			w.Update(svg)
 		}
 
 		time.Sleep(rate)
 	}
-	saveAppState(config.Widgets)
+	saveAppState(widgets)
 
 	svg.Call("remove")
 
@@ -107,6 +119,21 @@ func getLastUpdate() (int64, error) {
 	}
 
 	return lu, nil
+}
+
+func getConfig() (*Config, error) {
+	resp, err := http.Get("/config")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	config := Config{}
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }
 
 func saveAppState(widgets []Widget) {
@@ -153,4 +180,67 @@ func loadAppState(widgets []Widget) {
 
 		panic(fmt.Sprintf("read widget state of non stateful widget at index %d", i))
 	}
+}
+
+func updateWidgets(widgets, mods []Widget) error {
+	if len(widgets) != len(mods) {
+		return fmt.Errorf("ERROR: unsupported feature, updates with different widgets")
+	}
+
+	for i, w := range widgets {
+		switch v := w.(type) {
+		case *WidgetCircle:
+			m, ok := mods[i].(*WidgetCircle)
+			if !ok {
+				return fmt.Errorf("invalid widget type received in update. Expected circle at position %d", i)
+			}
+
+			v.StrokeHue = m.StrokeHue
+			v.StrokeWidth = m.StrokeWidth
+			v.FillHue = m.FillHue
+			v.Radius = m.Radius
+
+		case *WidgetText:
+			m, ok := mods[i].(*WidgetText)
+			if !ok {
+				return fmt.Errorf("invalid widget type received in update. Expected text at position %d", i)
+			}
+
+			v.Text = m.Text
+			v.X = m.X
+			v.Y = m.Y
+			v.FontFamily = m.FontFamily
+			v.FontFill = m.FontFill
+			v.FontSize = m.FontSize
+
+		case *WidgetCountdown:
+			m, ok := mods[i].(*WidgetCountdown)
+			if !ok {
+				return fmt.Errorf("invalid widget type received in update. Expected countdown at position %d", i)
+			}
+
+			v.X = m.X
+			v.Y = m.Y
+			v.FontFamily = m.FontFamily
+			v.FontFill = m.FontFill
+			v.DoneFontFill = m.DoneFontFill
+			v.FontSize = m.FontSize
+
+		case *WidgetTodoList:
+			m, ok := mods[i].(*WidgetTodoList)
+			if !ok {
+				return fmt.Errorf("invalid widget type received in update. Expected todolist at position %d", i)
+			}
+
+			v.X = m.X
+			v.Y = m.Y
+			v.FontFamily = m.FontFamily
+			v.FontFill = m.FontFill
+			v.Width = m.Width
+			v.FontSize = m.FontSize
+			// TODO: //v.DoneFontFill = m.DoneFontFill
+		}
+	}
+
+	return nil
 }
