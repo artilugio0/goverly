@@ -28,19 +28,17 @@ func main() {
 
 	widgets := []Widget{
 		NewCircle(10),
-		//NewText("Break de 3 minutos, ya vuelvo!!!", 30, 50, svgHeight-60),
-		//NewCountdown(40, svgWidth-180, svgHeight-850, 30*time.Minute),
+		/*
+			NewText("Break de 3 minutos, ya vuelvo!!!", 30, 50, svgHeight-60),
+			NewCountdown(40, svgWidth-180, svgHeight-850, 3*time.Minute),
+		*/
 		NewText("Hoy: Browser overlay para OBS usando Golang + WebAssembly", 30, 50, svgHeight-60),
 		NewCountdown(40, svgWidth-180, svgHeight-850, 3*time.Second),
 		NewTodoList(
 			18, 230, svgWidth-235, svgHeight-800,
 			[]TodoListItem{
-				{"Remover IDs random de widgets", true},
-				{"Fix longitud de todo list item", true},
-				{"Crear widget de timer", true},
-				{"Hot reload basico", true},
-				{"Sacar coordenadas de widgets hardcodeadas", true},
-				{"Conservar estado cuando se hace un hot reload", false},
+				{"Conservar estado cuando se hace un hot reload", true},
+				{"Extraer definiciones de widgets hardcodeadas", false},
 			},
 		),
 	}
@@ -72,6 +70,8 @@ func main() {
 	}()
 
 	update := false
+
+	loadAppState(widgets)
 	for !update {
 		select {
 		case update = <-updateChan:
@@ -86,6 +86,7 @@ func main() {
 
 		time.Sleep(rate)
 	}
+	saveAppState(widgets)
 
 	svg.Call("remove")
 
@@ -111,4 +112,50 @@ func getLastUpdate() (int64, error) {
 	}
 
 	return lu, nil
+}
+
+func saveAppState(widgets []Widget) {
+	appState := []interface{}{}
+
+	for _, w := range widgets {
+		if w, ok := w.(WidgetStateful); ok {
+			wState := w.SaveState()
+			appState = append(appState, wState)
+			continue
+		}
+
+		appState = append(appState, nil)
+	}
+
+	js.Global().Set("appState", js.ValueOf(appState))
+}
+
+func loadAppState(widgets []Widget) {
+	// here I am assuming that the state and the widgets array have the same length
+	// TODO: remove this assumption
+
+	jsAppState := js.Global().Get("appState")
+	if jsAppState.IsNull() || jsAppState.IsUndefined() {
+		return
+	}
+
+	if jsAppState.Length() != len(widgets) {
+		return
+	}
+
+	for i := range jsAppState.Length() {
+		jsState := jsAppState.Index(i)
+		if jsState.IsNull() {
+			continue
+		}
+
+		w := widgets[i]
+		if w, ok := w.(WidgetStateful); ok {
+			w.LoadState(jsState)
+			fmt.Printf("widget %d loaded\n", i)
+			continue
+		}
+
+		panic(fmt.Sprintf("read widget state of non stateful widget at index %d", i))
+	}
 }
