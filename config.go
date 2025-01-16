@@ -169,7 +169,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 			if !ok {
 				return fmt.Errorf("invalid value for 'remaining' key in countdown. Found: '%+v'", wObj["remaining"])
 			}
-			w.Remaining = time.Duration(int(remaining)) * time.Millisecond
+			w.Remaining = time.Duration(int(remaining)) * time.Second
 
 			widget = &w
 		case "todolist":
