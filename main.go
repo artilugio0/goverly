@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 	"syscall/js"
 	"time"
@@ -136,111 +137,129 @@ func getConfig() (*Config, error) {
 	return &config, nil
 }
 
-func saveAppState(widgets []Widget) {
-	appState := []interface{}{}
+func saveAppState(widgets map[string]Widget) {
+	appState := map[string]any{}
 
-	for _, w := range widgets {
+	for k, w := range widgets {
 		if w, ok := w.(WidgetStateful); ok {
 			wState := w.SaveState()
-			appState = append(appState, wState)
+			appState[k] = wState
 			continue
 		}
-
-		appState = append(appState, nil)
 	}
 
 	js.Global().Set("appState", js.ValueOf(appState))
 }
 
-func loadAppState(widgets []Widget) {
-	// here I am assuming that the state and the widgets array have the same length
-	// TODO: remove this assumption
-
+func loadAppState(widgets map[string]Widget) {
 	jsAppState := js.Global().Get("appState")
 	if jsAppState.IsNull() || jsAppState.IsUndefined() {
 		return
 	}
 
-	if jsAppState.Length() != len(widgets) {
-		return
-	}
-
-	for i := range jsAppState.Length() {
-		jsState := jsAppState.Index(i)
+	keys := js.Global().Get("Object").Call("keys", jsAppState)
+	for i := range keys.Length() {
+		widgetKey := keys.Index(i).String()
+		jsState := jsAppState.Get(widgetKey)
 		if jsState.IsNull() {
 			continue
 		}
 
-		w := widgets[i]
-		if w, ok := w.(WidgetStateful); ok {
-			w.LoadState(jsState)
-			fmt.Printf("widget %d loaded\n", i)
+		w, ok := widgets[widgetKey]
+		if !ok {
 			continue
 		}
 
-		panic(fmt.Sprintf("read widget state of non stateful widget at index %d", i))
+		if w, ok := w.(WidgetStateful); ok {
+			w.LoadState(jsState)
+			fmt.Printf("widget '%s' loaded\n", widgetKey)
+			continue
+		}
+
+		panic(fmt.Sprintf("read widget state of non stateful widget with key '%s'", widgetKey))
 	}
 }
 
-func updateWidgets(widgets, mods []Widget) error {
-	if len(widgets) != len(mods) {
-		return fmt.Errorf("ERROR: unsupported feature, updates with different widgets")
+func updateWidgets(widgets, mods map[string]Widget) error {
+	// TODO: remove widgets present in widgets that have different type in mods
+
+	for k, w := range widgets {
+		if m, ok := mods[k]; !ok || reflect.TypeOf(w) != reflect.TypeOf(m) {
+			switch v := w.(type) {
+			case *WidgetCircle:
+				v.element.Call("remove")
+			case *WidgetText:
+				v.element.Call("remove")
+			case *WidgetCountdown:
+				v.element.Call("remove")
+			case *WidgetTodoList:
+				v.element.Call("remove")
+			}
+			delete(widgets, k)
+		}
 	}
 
-	for i, w := range widgets {
-		switch v := w.(type) {
-		case *WidgetCircle:
-			m, ok := mods[i].(*WidgetCircle)
-			if !ok {
-				return fmt.Errorf("invalid widget type received in update. Expected circle at position %d", i)
+	for k, m := range mods {
+		if w, ok := widgets[k]; ok {
+			switch v := w.(type) {
+			case *WidgetCircle:
+				m, ok := mods[k].(*WidgetCircle)
+				if !ok {
+					return fmt.Errorf("invalid widget type received in update. Expected circle at key %s", k)
+				}
+
+				v.StrokeHue = m.StrokeHue
+				v.StrokeWidth = m.StrokeWidth
+				v.FillHue = m.FillHue
+				v.Radius = m.Radius
+
+			case *WidgetText:
+				m, ok := mods[k].(*WidgetText)
+				if !ok {
+					return fmt.Errorf("invalid widget type received in update. Expected text at key %s", k)
+				}
+
+				v.Text = m.Text
+				v.X = m.X
+				v.Y = m.Y
+				v.FontFamily = m.FontFamily
+				v.FontFill = m.FontFill
+				v.FontSize = m.FontSize
+
+			case *WidgetCountdown:
+				m, ok := mods[k].(*WidgetCountdown)
+				if !ok {
+					return fmt.Errorf("invalid widget type received in update. Expected countdown at key %s", k)
+				}
+
+				v.X = m.X
+				v.Y = m.Y
+				v.FontFamily = m.FontFamily
+				v.FontFill = m.FontFill
+				v.DoneFontFill = m.DoneFontFill
+				v.FontSize = m.FontSize
+
+			case *WidgetTodoList:
+				m, ok := mods[k].(*WidgetTodoList)
+				if !ok {
+					return fmt.Errorf("invalid widget type received in update. Expected todolist at key %s", k)
+				}
+
+				v.X = m.X
+				v.Y = m.Y
+				v.FontFamily = m.FontFamily
+				v.FontFill = m.FontFill
+				v.Width = m.Width
+				v.FontSize = m.FontSize
+				v.DoneFontFill = m.DoneFontFill
+				v.Items = m.Items
 			}
-
-			v.StrokeHue = m.StrokeHue
-			v.StrokeWidth = m.StrokeWidth
-			v.FillHue = m.FillHue
-			v.Radius = m.Radius
-
-		case *WidgetText:
-			m, ok := mods[i].(*WidgetText)
-			if !ok {
-				return fmt.Errorf("invalid widget type received in update. Expected text at position %d", i)
-			}
-
-			v.Text = m.Text
-			v.X = m.X
-			v.Y = m.Y
-			v.FontFamily = m.FontFamily
-			v.FontFill = m.FontFill
-			v.FontSize = m.FontSize
-
-		case *WidgetCountdown:
-			m, ok := mods[i].(*WidgetCountdown)
-			if !ok {
-				return fmt.Errorf("invalid widget type received in update. Expected countdown at position %d", i)
-			}
-
-			v.X = m.X
-			v.Y = m.Y
-			v.FontFamily = m.FontFamily
-			v.FontFill = m.FontFill
-			v.DoneFontFill = m.DoneFontFill
-			v.FontSize = m.FontSize
-
-		case *WidgetTodoList:
-			m, ok := mods[i].(*WidgetTodoList)
-			if !ok {
-				return fmt.Errorf("invalid widget type received in update. Expected todolist at position %d", i)
-			}
-
-			v.X = m.X
-			v.Y = m.Y
-			v.FontFamily = m.FontFamily
-			v.FontFill = m.FontFill
-			v.Width = m.Width
-			v.FontSize = m.FontSize
-			v.DoneFontFill = m.DoneFontFill
-			v.Items = m.Items
+			continue
 		}
+
+		fmt.Printf("new widget added! %+v\n", m)
+		// if not present in widgets, add it
+		widgets[k] = m
 	}
 
 	return nil

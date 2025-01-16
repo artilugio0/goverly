@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Widgets []Widget `json:"widgets"`
+	Widgets map[string]Widget `json:"widgets"`
 }
 
 func readConfig(configPath string) (*Config, error) {
@@ -31,12 +31,14 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	widgetDefs, ok := body["widgets"].([]any)
+	widgetDefs, ok := body["widgets"].(map[string]any)
 	if !ok {
 		return nil
 	}
 
-	for _, d := range widgetDefs {
+	c.Widgets = map[string]Widget{}
+
+	for k, d := range widgetDefs {
 		widgetDef := d.(map[string]any)
 		wType, ok := widgetDef["type"].(string)
 		if !ok {
@@ -250,7 +252,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("invalid widget type found: '%s'", wType)
 		}
 
-		c.Widgets = append(c.Widgets, widget)
+		c.Widgets[k] = widget
 	}
 
 	return nil
@@ -263,9 +265,9 @@ type configWidget struct {
 
 func (c Config) MarshalJSON() ([]byte, error) {
 	configObj := map[string]any{}
-	configWidgets := []configWidget{}
+	configWidgets := map[string]configWidget{}
 
-	for _, w := range c.Widgets {
+	for k, w := range c.Widgets {
 		cw := configWidget{
 			Widget: w,
 		}
@@ -281,7 +283,7 @@ func (c Config) MarshalJSON() ([]byte, error) {
 			cw.Type = "countdown"
 		}
 
-		configWidgets = append(configWidgets, cw)
+		configWidgets[k] = cw
 	}
 
 	configObj["widgets"] = configWidgets
