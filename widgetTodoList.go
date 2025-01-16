@@ -37,93 +37,93 @@ func NewTodoList(textSize, width, x, y int, items []TodoListItem) *WidgetTodoLis
 }
 
 func (wtl *WidgetTodoList) Update(svg js.Value) {
+	document := js.Global().Get("document")
 	if !wtl.appended {
-		titleTextSize := wtl.FontSize * 11 / 9
-		itemMarginBottom := 5
+		wtl.element = document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
+		svg.Call("appendChild", wtl.element)
+		wtl.appended = true
+	}
 
-		document := js.Global().Get("document")
+	wtl.element.Set("innerHTML", "")
 
-		g := document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
+	titleTextSize := wtl.FontSize * 11 / 9
+	itemMarginBottom := 5
 
-		title := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
-		title.Call("setAttribute", "font-family", wtl.FontFamily)
-		title.Call("setAttribute", "fill", "white")
-		title.Call("setAttribute", "font-size", titleTextSize)
-		title.Call("setAttribute", "x", 0)
-		title.Call("setAttribute", "y", 0)
-		textnode := document.Call("createTextNode", "To Do:")
-		title.Call("appendChild", textnode)
-		g.Call("appendChild", title)
+	title := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
+	title.Call("setAttribute", "font-family", wtl.FontFamily)
+	title.Call("setAttribute", "fill", "white")
+	title.Call("setAttribute", "font-size", titleTextSize)
+	title.Call("setAttribute", "x", 0)
+	title.Call("setAttribute", "y", 0)
+	textnode := document.Call("createTextNode", "To Do:")
 
-		itemY := titleTextSize + itemMarginBottom
-		for _, it := range wtl.Items {
-			listItemText := it.Description
-			textFields := strings.Fields(listItemText)
+	title.Call("appendChild", textnode)
+	wtl.element.Call("appendChild", title)
 
-			curWidth := 0
-			lines := []string{}
-			index := 0
-			for i, f := range textFields {
-				if curWidth+len(f)*(wtl.FontSize*80/100) > wtl.Width-2 {
-					if curWidth == 0 {
-						index = i + 1
-						if len(lines) == 0 {
-							lines = append(lines, "- "+textFields[i])
-						} else {
-							lines = append(lines, "  "+textFields[i])
-						}
-						continue
-					}
+	itemY := titleTextSize + itemMarginBottom
+	for _, it := range wtl.Items {
+		listItemText := it.Description
+		textFields := strings.Fields(listItemText)
 
-					curWidth = 0
-					line := strings.Join(textFields[index:i], " ")
-					index = i
-
+		curWidth := 0
+		lines := []string{}
+		index := 0
+		for i, f := range textFields {
+			if curWidth+len(f)*(wtl.FontSize*80/100) > wtl.Width-2 {
+				if curWidth == 0 {
+					index = i + 1
 					if len(lines) == 0 {
-						lines = append(lines, "- "+line)
+						lines = append(lines, "- "+textFields[i])
 					} else {
-						lines = append(lines, line)
+						lines = append(lines, "  "+textFields[i])
 					}
+					continue
 				}
 
-				curWidth += len(f) * (wtl.FontSize * 80 / 100)
+				curWidth = 0
+				line := strings.Join(textFields[index:i], " ")
+				index = i
+
+				if len(lines) == 0 {
+					lines = append(lines, "- "+line)
+				} else {
+					lines = append(lines, line)
+				}
 			}
 
-			if len(lines) == 0 {
-				lines = append(lines, "- "+it.Description)
-			} else {
-				lines = append(lines, strings.Join(textFields[index:], " "))
-			}
-
-			color := wtl.FontFill
-			if it.Done {
-				color = "lime"
-			}
-
-			for _, line := range lines {
-
-				itemText := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
-				itemText.Call("setAttribute", "font-family", wtl.FontFamily)
-				itemText.Call("setAttribute", "fill", color)
-				itemText.Call("setAttribute", "font-size", wtl.FontSize)
-				itemText.Call("setAttribute", "x", 0)
-				itemText.Call("setAttribute", "y", itemY)
-
-				textnode := document.Call("createTextNode", line)
-
-				itemText.Call("appendChild", textnode)
-				g.Call("appendChild", itemText)
-
-				itemY += wtl.FontSize + itemMarginBottom
-			}
+			curWidth += len(f) * (wtl.FontSize * 80 / 100)
 		}
 
-		g.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", wtl.X, wtl.Y))
-		svg.Call("appendChild", g)
+		if len(lines) == 0 {
+			lines = append(lines, "- "+it.Description)
+		} else {
+			lines = append(lines, strings.Join(textFields[index:], " "))
+		}
 
-		wtl.appended = true
-		wtl.element = g
+		color := wtl.FontFill
+		if it.Done {
+			color = "lime"
+		}
+
+		for _, line := range lines {
+
+			itemText := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
+			itemText.Call("setAttribute", "font-family", wtl.FontFamily)
+			itemText.Call("setAttribute", "fill", color)
+			itemText.Call("setAttribute", "font-size", wtl.FontSize)
+			itemText.Call("setAttribute", "x", 0)
+			itemText.Call("setAttribute", "y", itemY)
+
+			textnode := document.Call("createTextNode", line)
+
+			itemText.Call("appendChild", textnode)
+			wtl.element.Call("appendChild", itemText)
+
+			itemY += wtl.FontSize + itemMarginBottom
+		}
 	}
+
+	wtl.element.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", wtl.X, wtl.Y))
 }
 
 func (wtl *WidgetTodoList) SaveState() js.Value {
