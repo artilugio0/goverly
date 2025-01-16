@@ -238,7 +238,7 @@ func updateWidgets(widgets, mods []Widget) error {
 			v.FontFill = m.FontFill
 			v.Width = m.Width
 			v.FontSize = m.FontSize
-			// TODO: //v.DoneFontFill = m.DoneFontFill
+			v.DoneFontFill = m.DoneFontFill
 			v.Items = m.Items
 		}
 	}

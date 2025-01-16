@@ -198,6 +198,12 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 			}
 			w.FontFill = fontFill
 
+			doneFontFill, ok := wObj["done_font_fill"].(string)
+			if !ok {
+				return fmt.Errorf("invalid value for 'done_font_fill' key in todolist. Found: '%+v'", wObj["done_font_fill"])
+			}
+			w.DoneFontFill = doneFontFill
+
 			fontSize, ok := wObj["font_size"].(float64)
 			if !ok {
 				return fmt.Errorf("invalid value for 'font_size' key in todolist. Found: '%+v'", wObj["font_size"])

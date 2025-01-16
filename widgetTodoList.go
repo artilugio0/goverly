@@ -10,13 +10,14 @@ type WidgetTodoList struct {
 	appended bool     `json:"-"`
 	element  js.Value `json:"-"`
 
-	X          int            `json:"x"`
-	Y          int            `json:"y"`
-	Width      int            `json:"width"`
-	FontSize   int            `json:"font_size"`
-	FontFamily string         `json:"font_family"`
-	FontFill   string         `json:"font_fill"`
-	Items      []TodoListItem `json:"items"`
+	X            int            `json:"x"`
+	Y            int            `json:"y"`
+	Width        int            `json:"width"`
+	FontSize     int            `json:"font_size"`
+	FontFamily   string         `json:"font_family"`
+	FontFill     string         `json:"font_fill"`
+	DoneFontFill string         `json:"done_font_fill"`
+	Items        []TodoListItem `json:"items"`
 }
 
 type TodoListItem struct {
@@ -102,7 +103,7 @@ func (wtl *WidgetTodoList) Update(svg js.Value) {
 
 		color := wtl.FontFill
 		if it.Done {
-			color = "lime"
+			color = wtl.DoneFontFill
 		}
 
 		for _, line := range lines {
