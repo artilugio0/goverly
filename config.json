@@ -1,17 +1,6 @@
 {
-	"widgets": [
-		{
-			"type": "circle",
-			"widget": {
-				"x": 0,
-				"y": 0,
-				"stroke_hue": 220,
-				"fill_hue": 60,
-				"radius": 15,
-				"stroke_width": 5
-			}
-		},
-		{
+	"widgets": {
+		"stream_title": {
 			"type": "text",
 			"widget": {
 				"text": "Hoy: Browser overlay para OBS usando Golang + WebAssembly",
@@ -22,7 +11,7 @@
 				"font_size": 30
 			}
 		},
-		{
+		"timer": {
 			"type": "countdown",
 			"widget": {
 				"x": 1740,
@@ -31,10 +20,10 @@
 				"font_fill": "white",
 				"done_font_fill": "violet",
 				"font_size": 40,
-				"remaining": 3
+				"end_time": 1737229740
 			}
 		},
-		{
+		"todolist": {
 			"type": "todolist",
 			"widget": {
 				"x": 1685,
@@ -43,17 +32,26 @@
 				"font_size": 18,
 				"font_family": "Courier New",
 				"font_fill": "white",
+				"done_font_fill": "#55FF66",
 				"items": [
 					{
-						"description": "Extraer definiciones de widgets hardcodeadas",
+						"description": "Simplicar JSON marshal/unmarshal",
 						"done":  true
 					},
 					{
-						"description": "Asignar IDs a widgets",
+						"description": "Preservar countdown ante reloads",
+						"done":  true
+					},
+					{
+						"description": "Separar configuracion de estado en widgets",
+						"done":  true
+					},
+					{
+						"description": "Agregar vector velocidad a circle",
 						"done":  false
 					}
 				]
 			}
 		}
-	]
+	}
 }
