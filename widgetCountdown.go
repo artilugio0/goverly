@@ -81,15 +81,30 @@ func (wc *WidgetCountdown) UpdateConfig(newConfig Widget) []RenderAction {
 		wc.DoneFontFill = newCfg.DoneFontFill
 		if wc.remaining < 0 {
 			actions = append(actions, func(svg js.Value) {
-				wc.element.Call("setAttribute", "font-size", wc.DoneFontFill)
+				wc.timeText.Call("setAttribute", "fill", wc.DoneFontFill)
 			})
 		}
 	}
 
 	if wc.EndTime != newCfg.EndTime {
+		wasDone := wc.remaining < 0
 		wc.EndTime = newCfg.EndTime
 		endDate := time.Unix(wc.EndTime, 0)
 		wc.remaining = endDate.Sub(time.Now())
+
+		if wc.remaining < 0 && !wasDone {
+			actions = append(actions, func(svg js.Value) {
+				wc.timeText.Call("setAttribute", "fill", wc.DoneFontFill)
+			})
+		} else if wc.remaining >= 0 && wasDone {
+			actions = append(actions, func(svg js.Value) {
+				wc.timeText.Call("setAttribute", "fill", wc.FontFill)
+				bbox := wc.timeText.Call("getBBox")
+				timeTextWidth := bbox.Get("width").Int()
+				transform := fmt.Sprintf("rotate(%d, %d, 0)", 0, timeTextWidth/2)
+				wc.timeText.Call("setAttribute", "transform", transform)
+			})
+		}
 	}
 
 	return actions
