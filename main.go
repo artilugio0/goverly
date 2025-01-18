@@ -78,21 +78,33 @@ func main() {
 
 	widgets := config.Widgets
 	loadAppState(widgets)
+
+	for _, w := range widgets {
+		w.Render(svg)
+	}
+
+	// TODO: check sleep and breaks, maybe use tick?
+APP:
 	for !appUpdateAvailable {
+		renderActions := []RenderAction{}
+
 		select {
 		case appUpdateAvailable = <-appUpdateAvailableChan:
-			break
+			break APP
 		case newConfig := <-configUpdateChan:
-			updateWidgets(widgets, newConfig.Widgets)
-		default:
-			break
+			acts := updateWidgets(widgets, newConfig.Widgets)
+			renderActions = append(renderActions, acts...)
+		case <-time.After(rate):
 		}
 
 		for _, w := range widgets {
-			w.Update(svg)
+			acts := w.Update(rate)
+			renderActions = append(renderActions, acts...)
 		}
 
-		time.Sleep(rate)
+		for _, ra := range renderActions {
+			ra(svg)
+		}
 	}
 	saveAppState(widgets)
 
@@ -180,87 +192,30 @@ func loadAppState(widgets map[string]Widget) {
 	}
 }
 
-func updateWidgets(widgets, mods map[string]Widget) error {
-	// TODO: remove widgets present in widgets that have different type in mods
+func updateWidgets(widgets, mods map[string]Widget) []RenderAction {
+	renderActions := []RenderAction{}
 
 	for k, w := range widgets {
 		if m, ok := mods[k]; !ok || reflect.TypeOf(w) != reflect.TypeOf(m) {
-			switch v := w.(type) {
-			case *WidgetCircle:
-				v.element.Call("remove")
-			case *WidgetText:
-				v.element.Call("remove")
-			case *WidgetCountdown:
-				v.element.Call("remove")
-			case *WidgetTodoList:
-				v.element.Call("remove")
-			}
+			// TODO: check if it can be added to render actions
+			w.RemoveFromDOM()
 			delete(widgets, k)
 		}
 	}
 
 	for k, m := range mods {
 		if w, ok := widgets[k]; ok {
-			switch v := w.(type) {
-			case *WidgetCircle:
-				m, ok := mods[k].(*WidgetCircle)
-				if !ok {
-					return fmt.Errorf("invalid widget type received in update. Expected circle at key %s", k)
-				}
-
-				v.StrokeHue = m.StrokeHue
-				v.StrokeWidth = m.StrokeWidth
-				v.FillHue = m.FillHue
-				v.Radius = m.Radius
-
-			case *WidgetText:
-				m, ok := mods[k].(*WidgetText)
-				if !ok {
-					return fmt.Errorf("invalid widget type received in update. Expected text at key %s", k)
-				}
-
-				v.Text = m.Text
-				v.X = m.X
-				v.Y = m.Y
-				v.FontFamily = m.FontFamily
-				v.FontFill = m.FontFill
-				v.FontSize = m.FontSize
-
-			case *WidgetCountdown:
-				m, ok := mods[k].(*WidgetCountdown)
-				if !ok {
-					return fmt.Errorf("invalid widget type received in update. Expected countdown at key %s", k)
-				}
-
-				v.X = m.X
-				v.Y = m.Y
-				v.FontFamily = m.FontFamily
-				v.FontFill = m.FontFill
-				v.DoneFontFill = m.DoneFontFill
-				v.FontSize = m.FontSize
-
-			case *WidgetTodoList:
-				m, ok := mods[k].(*WidgetTodoList)
-				if !ok {
-					return fmt.Errorf("invalid widget type received in update. Expected todolist at key %s", k)
-				}
-
-				v.X = m.X
-				v.Y = m.Y
-				v.FontFamily = m.FontFamily
-				v.FontFill = m.FontFill
-				v.Width = m.Width
-				v.FontSize = m.FontSize
-				v.DoneFontFill = m.DoneFontFill
-				v.Items = m.Items
-			}
+			acts := w.UpdateConfig(m)
+			renderActions = append(renderActions, acts...)
 			continue
 		}
 
-		fmt.Printf("new widget added! %+v\n", m)
 		// if not present in widgets, add it
 		widgets[k] = m
+		renderActions = append(renderActions, func(svg js.Value) {
+			m.Render(svg)
+		})
 	}
 
-	return nil
+	return renderActions
 }

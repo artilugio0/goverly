@@ -10,27 +10,28 @@ import (
 var angles []int = []int{0, 5, 0, -5}
 
 type WidgetCountdown struct {
+	// time remaining to reach 00:00
+	remaining   time.Duration `json:"-"`
+	angleMillis int           `json:"-"`
+	angleIndex  int           `json:"-"`
+
 	element  js.Value `json:"-"`
 	textNode js.Value `json:"-"`
 	timeText js.Value `json:"-"`
-	appended bool     `json:"-"`
 
-	AngleMillis  int           `json:"angle_millis"`
-	AngleIndex   int           `json:"angle_index"`
-	FontFamily   string        `json:"font_family"`
-	FontFill     string        `json:"font_fill"`
-	DoneFontFill string        `json:"done_font_fill"`
-	FontSize     int           `json:"font_size"`
-	Remaining    time.Duration `json:"remaining"`
-	X            int           `json:"x"`
-	Y            int           `json:"y"`
+	FontFamily   string `json:"font_family"`
+	FontFill     string `json:"font_fill"`
+	DoneFontFill string `json:"done_font_fill"`
+	FontSize     int    `json:"font_size"`
+	EndTime      int64  `json:"end_time"`
+	X            int    `json:"x"`
+	Y            int    `json:"y"`
 }
 
 func NewCountdown(textSize, x, y int, t time.Duration) *WidgetCountdown {
 	return &WidgetCountdown{
-		AngleMillis: 0,
-		AngleIndex:  0,
-		Remaining:   t,
+		angleMillis: 0,
+		angleIndex:  0,
 		FontFamily:  "Courier New",
 		FontFill:    "white",
 		FontSize:    textSize,
@@ -39,79 +40,163 @@ func NewCountdown(textSize, x, y int, t time.Duration) *WidgetCountdown {
 	}
 }
 
-func (wc *WidgetCountdown) Update(svg js.Value) {
-	if !wc.appended {
-		document := js.Global().Get("document")
+func (wc *WidgetCountdown) UpdateConfig(newConfig Widget) []RenderAction {
+	actions := []RenderAction{}
 
-		g := document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
-
-		timeText := document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
-		timeText.Call("setAttribute", "x", 0)
-		timeText.Call("setAttribute", "y", 0)
-
-		textnode := document.Call("createTextNode", "00:00")
-		timeText.Call("appendChild", textnode)
-
-		g.Call("appendChild", timeText)
-		svg.Call("appendChild", g)
-
-		wc.textNode = textnode
-		wc.timeText = timeText
-		wc.element = g
-		wc.appended = true
+	newCfg, ok := newConfig.(*WidgetCountdown)
+	if !ok {
+		return nil
 	}
 
-	wc.timeText.Call("setAttribute", "font-family", wc.FontFamily)
-	wc.timeText.Call("setAttribute", "fill", wc.FontFill)
-	wc.timeText.Call("setAttribute", "font-size", wc.FontSize)
-	wc.element.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", wc.X, wc.Y))
-
-	wc.Remaining -= rate
-	if wc.Remaining > 0 {
-		mins := int(wc.Remaining.Minutes())
-		secs := int(wc.Remaining.Seconds()) % 60
-		text := fmt.Sprintf("%02d:%02d", mins, secs)
-		wc.textNode.Set("nodeValue", text)
-		return
+	if wc.X != newCfg.X || wc.Y != newCfg.Y {
+		wc.X = newCfg.X
+		wc.Y = newCfg.Y
+		actions = append(actions, func(svg js.Value) {
+			wc.element.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", wc.X, wc.Y))
+		})
 	}
 
-	// time is up
-	wc.timeText.Call("setAttribute", "fill", wc.DoneFontFill)
-	mins := int(math.Abs(wc.Remaining.Minutes()))
-	secs := int(math.Abs(wc.Remaining.Seconds())) % 60
-	text := fmt.Sprintf("%02d:%02d", mins, secs)
-	wc.textNode.Set("nodeValue", text)
+	if wc.FontFamily != newCfg.FontFamily {
+		wc.FontFamily = newCfg.FontFamily
+		actions = append(actions, func(svg js.Value) {
+			wc.element.Call("setAttribute", "font-family", wc.FontFamily)
+		})
+	}
+
+	if wc.FontFill != newCfg.FontFill {
+		wc.FontFill = newCfg.FontFill
+		actions = append(actions, func(svg js.Value) {
+			wc.element.Call("setAttribute", "fill", wc.FontFill)
+		})
+	}
+
+	if wc.FontSize != newCfg.FontSize {
+		wc.FontSize = newCfg.FontSize
+		actions = append(actions, func(svg js.Value) {
+			wc.element.Call("setAttribute", "font-size", wc.FontSize)
+		})
+	}
+
+	if wc.DoneFontFill != newCfg.DoneFontFill {
+		wc.DoneFontFill = newCfg.DoneFontFill
+		if wc.remaining < 0 {
+			actions = append(actions, func(svg js.Value) {
+				wc.element.Call("setAttribute", "font-size", wc.DoneFontFill)
+			})
+		}
+	}
+
+	if wc.EndTime != newCfg.EndTime {
+		wc.EndTime = newCfg.EndTime
+		endDate := time.Unix(wc.EndTime, 0)
+		wc.remaining = endDate.Sub(time.Now())
+	}
+
+	return actions
+}
+
+func (wc *WidgetCountdown) Update(timePassed time.Duration) []RenderAction {
+	actions := []RenderAction{}
+	wasDone := wc.remaining < 0
+
+	wc.remaining -= timePassed
+	if wc.remaining > 0 && wc.remaining%1000 == 0 {
+		actions = append(actions, func(svg js.Value) {
+			mins := int(wc.remaining.Minutes())
+			secs := int(wc.remaining.Seconds()) % 60
+			text := fmt.Sprintf("%02d:%02d", mins, secs)
+			wc.textNode.Set("nodeValue", text)
+		})
+		return actions
+	}
+
+	if !wasDone {
+		actions = append(actions, func(svg js.Value) {
+			wc.timeText.Call("setAttribute", "fill", wc.DoneFontFill)
+		})
+	}
+
+	if wc.remaining%1000 == 0 {
+		actions = append(actions, func(svg js.Value) {
+			mins := int(math.Abs(wc.remaining.Minutes()))
+			secs := int(math.Abs(wc.remaining.Seconds())) % 60
+			text := fmt.Sprintf("%02d:%02d", mins, secs)
+			wc.textNode.Set("nodeValue", text)
+		})
+	}
 
 	bbox := wc.timeText.Call("getBBox")
 	timeTextWidth := bbox.Get("width").Int()
 
-	wc.AngleMillis += int(rate.Milliseconds())
-	if (wc.AngleMillis/1000)%2 == 0 {
-		if wc.AngleMillis%50 == 0 {
-			wc.AngleIndex = (wc.AngleIndex + 1) % len(angles)
-		}
+	wc.angleMillis += int(rate.Milliseconds())
+	if (wc.angleMillis/1000)%2 == 0 {
+		if wc.angleMillis%50 == 0 {
+			wc.angleIndex = (wc.angleIndex + 1) % len(angles)
 
-		transform := fmt.Sprintf("rotate(%d, %d, 0)", angles[wc.AngleIndex], timeTextWidth/2)
-		wc.timeText.Call("setAttribute", "transform", transform)
-		return
+			actions = append(actions, func(svg js.Value) {
+				transform := fmt.Sprintf("rotate(%d, %d, 0)", angles[wc.angleIndex], timeTextWidth/2)
+				wc.timeText.Call("setAttribute", "transform", transform)
+			})
+		}
+		return actions
+	} else if wc.angleMillis%1000 == 0 {
+		actions = append(actions, func(svg js.Value) {
+			transform := fmt.Sprintf("rotate(%d, %d, 0)", 0, timeTextWidth/2)
+			wc.timeText.Call("setAttribute", "transform", transform)
+		})
 	}
 
-	transform := fmt.Sprintf("rotate(%d, %d, 0)", 0, timeTextWidth/2)
-	wc.timeText.Call("setAttribute", "transform", transform)
+	return actions
+}
+
+func (wc *WidgetCountdown) Render(svg js.Value) {
+	endDate := time.Unix(wc.EndTime, 0)
+	wc.remaining = endDate.Sub(time.Now())
+
+	document := js.Global().Get("document")
+
+	wc.element = document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
+
+	wc.timeText = document.Call("createElementNS", "http://www.w3.org/2000/svg", "text")
+	wc.timeText.Call("setAttribute", "x", 0)
+	wc.timeText.Call("setAttribute", "y", 0)
+
+	wc.textNode = document.Call("createTextNode", "00:00")
+	wc.timeText.Call("appendChild", wc.textNode)
+
+	wc.element.Call("setAttribute", "transform", fmt.Sprintf("translate(%d, %d)", wc.X, wc.Y))
+	wc.element.Call("setAttribute", "font-family", wc.FontFamily)
+	fill := wc.FontFill
+	if wc.remaining <= 0 {
+		fill = wc.DoneFontFill
+	}
+	wc.element.Call("setAttribute", "fill", fill)
+	wc.element.Call("setAttribute", "font-size", wc.FontSize)
+
+	wc.element.Call("appendChild", wc.timeText)
+	svg.Call("appendChild", wc.element)
 }
 
 func (wc *WidgetCountdown) SaveState() js.Value {
 	state := map[string]interface{}{
-		"angle_millis": wc.AngleMillis,
-		"angle_index":  wc.AngleIndex,
-		"remaining":    wc.Remaining.Milliseconds(),
+		"angle_millis": wc.angleMillis,
+		"angle_index":  wc.angleIndex,
+		"remaining":    wc.remaining.Milliseconds(),
 	}
 
 	return js.ValueOf(state)
 }
 
 func (wc *WidgetCountdown) LoadState(state js.Value) {
-	wc.AngleMillis = state.Get("angle_millis").Int()
-	wc.AngleIndex = state.Get("angle_index").Int()
-	wc.Remaining = time.Duration(state.Get("remaining").Int()) * time.Millisecond
+	wc.angleMillis = state.Get("angle_millis").Int()
+	wc.angleIndex = state.Get("angle_index").Int()
+	wc.remaining = time.Duration(state.Get("remaining").Int()) * time.Millisecond
+}
+
+func (wc *WidgetCountdown) RemoveFromDOM() {
+	wc.element.Call("remove")
+}
+
+func (wc *WidgetCountdown) Type() string {
+	return "countdown"
 }

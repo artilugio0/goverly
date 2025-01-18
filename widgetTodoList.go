@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"syscall/js"
+	"time"
 )
 
 type WidgetTodoList struct {
@@ -37,13 +38,79 @@ func NewTodoList(textSize, width, x, y int, items []TodoListItem) *WidgetTodoLis
 	}
 }
 
-func (wtl *WidgetTodoList) Update(svg js.Value) {
-	document := js.Global().Get("document")
-	if !wtl.appended {
-		wtl.element = document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
-		svg.Call("appendChild", wtl.element)
-		wtl.appended = true
+func (wtl *WidgetTodoList) Update(timePassed time.Duration) []RenderAction {
+	return nil
+}
+
+func (wtl *WidgetTodoList) UpdateConfig(newConfig Widget) []RenderAction {
+	updated := false
+
+	newCfg, ok := newConfig.(*WidgetTodoList)
+	if !ok {
+		return nil
 	}
+
+	if wtl.X != newCfg.X || wtl.Y != newCfg.Y {
+		wtl.X = newCfg.X
+		wtl.Y = newCfg.Y
+		updated = true
+	}
+
+	if wtl.Width != newCfg.Width {
+		wtl.Width = newCfg.Width
+		updated = true
+	}
+
+	if wtl.FontFamily != newCfg.FontFamily {
+		wtl.FontFamily = newCfg.FontFamily
+		updated = true
+	}
+
+	if wtl.FontFill != newCfg.FontFill {
+		wtl.FontFill = newCfg.FontFill
+		updated = true
+	}
+
+	if wtl.DoneFontFill != newCfg.DoneFontFill {
+		wtl.DoneFontFill = newCfg.DoneFontFill
+		updated = true
+	}
+
+	if wtl.FontSize != newCfg.FontSize {
+		wtl.FontSize = newCfg.FontSize
+		updated = true
+	}
+
+	if len(wtl.Items) != len(newCfg.Items) {
+		updated = true
+		wtl.Items = newCfg.Items
+	} else {
+		for i, item := range wtl.Items {
+			if item.Description != newCfg.Items[i].Description || item.Done != newCfg.Items[i].Done {
+				updated = true
+				wtl.Items = newCfg.Items
+				break
+			}
+		}
+	}
+
+	if updated {
+		return []RenderAction{wtl.renderItems}
+	}
+
+	return nil
+}
+
+func (wtl *WidgetTodoList) Render(svg js.Value) {
+	document := js.Global().Get("document")
+	wtl.element = document.Call("createElementNS", "http://www.w3.org/2000/svg", "g")
+	svg.Call("appendChild", wtl.element)
+
+	wtl.renderItems(svg)
+}
+
+func (wtl *WidgetTodoList) renderItems(svg js.Value) {
+	document := js.Global().Get("document")
 
 	wtl.element.Set("innerHTML", "")
 
@@ -134,4 +201,12 @@ func (wtl *WidgetTodoList) SaveState() js.Value {
 }
 
 func (wtl *WidgetTodoList) LoadState(state js.Value) {
+}
+
+func (wtl *WidgetTodoList) RemoveFromDOM() {
+	wtl.element.Call("remove")
+}
+
+func (wtl *WidgetTodoList) Type() string {
+	return "todolist"
 }

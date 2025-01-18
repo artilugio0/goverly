@@ -1,10 +1,20 @@
 package main
 
-import "syscall/js"
+import (
+	"syscall/js"
+	"time"
+)
 
 type Widget interface {
-	Update(svg js.Value)
+	RemoveFromDOM()
+	Type() string
+
+	Render(svg js.Value)
+	Update(timePassed time.Duration) []RenderAction
+	UpdateConfig(newConfig Widget) []RenderAction
 }
+
+type RenderAction func(svg js.Value)
 
 type WidgetStateful interface {
 	Widget
