@@ -1,4 +1,4 @@
-package main
+package goverly
 
 import (
 	"encoding/json"

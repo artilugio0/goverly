@@ -1,3 +1,3 @@
-module github.com/artilugio0/gowasm
+module github.com/artilugio0/goverly
 
 go 1.23.4

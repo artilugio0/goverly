@@ -1,4 +1,4 @@
-package main
+package goverly
 
 import (
 	"encoding/json"
@@ -11,12 +11,7 @@ import (
 	"time"
 )
 
-const border int = 0
-const svgWidth int = 1920 - 2*border
-const svgHeight int = 1080 - 2*border
-const rate time.Duration = 10 * time.Millisecond
-
-func main() {
+func RunOverlay() {
 	config, err := getConfig()
 	if err != nil {
 		panic(err)
