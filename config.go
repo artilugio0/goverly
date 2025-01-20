@@ -6,8 +6,12 @@ import (
 	"os"
 )
 
+type WidgetConfig interface {
+	Type() string
+}
+
 type Config struct {
-	Widgets map[string]Widget `json:"widgets"`
+	Widgets map[string]WidgetConfig `json:"widgets"`
 }
 
 func readConfig(configPath string) (*Config, error) {
@@ -37,10 +41,10 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	c.Widgets = map[string]Widget{}
+	c.Widgets = map[string]WidgetConfig{}
 
 	for k, d := range tmp.Widgets {
-		var widget Widget
+		var widget WidgetConfig
 		switch d.Type {
 		case "circle":
 			w := WidgetCircle{}
@@ -78,8 +82,8 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 
 func (c Config) MarshalJSON() ([]byte, error) {
 	type configWidget struct {
-		Type   string `json:"type"`
-		Widget Widget `json:"widget"`
+		Type   string       `json:"type"`
+		Widget WidgetConfig `json:"widget"`
 	}
 
 	configObj := map[string]any{}

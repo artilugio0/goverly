@@ -1,3 +1,5 @@
+//go:build js
+
 package goverly
 
 import (
@@ -12,7 +14,7 @@ import (
 )
 
 func RunOverlay() {
-	config, err := getConfig()
+	widgets, err := getWidgetConfigs()
 	if err != nil {
 		panic(err)
 	}
@@ -54,24 +56,23 @@ func RunOverlay() {
 		}
 	}()
 
-	configUpdateChan := make(chan *Config)
+	configUpdateChan := make(chan map[string]Widget)
 	go func() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			newConfig, err := getConfig()
+			widgetsCfg, err := getWidgetConfigs()
 			if err != nil {
 				fmt.Printf("error while trying to get new config: %v\n", err)
 				continue
 			}
 
-			configUpdateChan <- newConfig
+			configUpdateChan <- widgetsCfg
 		}
 	}()
 
 	appUpdateAvailable := false
 
-	widgets := config.Widgets
 	loadAppState(widgets)
 
 	for _, w := range widgets {
@@ -86,8 +87,8 @@ APP:
 		select {
 		case appUpdateAvailable = <-appUpdateAvailableChan:
 			break APP
-		case newConfig := <-configUpdateChan:
-			acts := updateWidgets(widgets, newConfig.Widgets)
+		case newWidgetsConfig := <-configUpdateChan:
+			acts := updateWidgets(widgets, newWidgetsConfig)
 			renderActions = append(renderActions, acts...)
 		case <-time.After(rate):
 		}
@@ -129,7 +130,7 @@ func getLastUpdate() (int64, error) {
 	return lu, nil
 }
 
-func getConfig() (*Config, error) {
+func getWidgetConfigs() (map[string]Widget, error) {
 	resp, err := http.Get("/config")
 	if err != nil {
 		return nil, err
@@ -141,7 +142,21 @@ func getConfig() (*Config, error) {
 		return nil, err
 	}
 
-	return &config, nil
+	widgets := map[string]Widget{}
+	for k, w := range config.Widgets {
+		switch v := w.(type) {
+		case *WidgetText:
+			widgets[k] = &WidgetTextJS{WidgetText: v}
+		case *WidgetCircle:
+			widgets[k] = &WidgetCircleJS{WidgetCircle: v}
+		case *WidgetCountdown:
+			widgets[k] = &WidgetCountdownJS{WidgetCountdown: v}
+		case *WidgetTodoList:
+			widgets[k] = &WidgetTodoListJS{WidgetTodoList: v}
+		}
+	}
+
+	return widgets, nil
 }
 
 func saveAppState(widgets map[string]Widget) {

@@ -3,7 +3,7 @@
 		"stream_title": {
 			"type": "text",
 			"widget": {
-				"text": "Hoy: Browser overlay para OBS usando Golang + WebAssembly",
+				"text": "Hoy: CLI en golang para controlar el overlay del stream",
 				"x": 50,
 				"y": 1020,
 				"font_family": "Courier New",
@@ -20,7 +20,7 @@
 				"font_fill": "white",
 				"done_font_fill": "violet",
 				"font_size": 40,
-				"end_time": 1737229740
+				"end_time": 1737404740
 			}
 		},
 		"todolist": {
@@ -35,19 +35,19 @@
 				"done_font_fill": "#55FF66",
 				"items": [
 					{
-						"description": "Simplicar JSON marshal/unmarshal",
+						"description": "Acomodar archivos en el proyecto",
 						"done":  true
 					},
 					{
-						"description": "Preservar countdown ante reloads",
-						"done":  true
+						"description": "Crear nuevo ejecutable para CLI",
+						"done":  false
 					},
 					{
-						"description": "Separar configuracion de estado en widgets",
-						"done":  true
+						"description": "Agregar comando overlay a CLI",
+						"done":  false
 					},
 					{
-						"description": "Agregar vector velocidad a circle",
+						"description": "Agregar comando para editar titulo",
 						"done":  false
 					}
 				]

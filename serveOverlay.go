@@ -1,4 +1,4 @@
-package main
+package goverly
 
 import (
 	"embed"
@@ -9,12 +9,7 @@ import (
 	"time"
 )
 
-//go:embed wasm/*
-var content embed.FS
-
-func main() {
-	configFile := "config.json"
-
+func ServeOverlay(configFile string, content embed.FS) {
 	startTime := time.Now()
 	http.Handle("/", http.FileServer(http.FS(content)))
 
