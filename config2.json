@@ -11,18 +11,6 @@
 				"font_size": 30
 			}
 		},
-		"timer": {
-			"type": "countdown",
-			"widget": {
-				"x": 1740,
-				"y": 230,
-				"font_family": "Courier New",
-				"font_fill": "white",
-				"done_font_fill": "violet",
-				"font_size": 40,
-				"end_time": 1737404740
-			}
-		},
 		"todolist": {
 			"type": "todolist",
 			"widget": {
@@ -48,7 +36,7 @@
 					},
 					{
 						"description": "Agregar opcion para especificar archivo de config",
-						"done":  true
+						"done":  false
 					},
 					{
 						"description": "Agregar comando para editar titulo",

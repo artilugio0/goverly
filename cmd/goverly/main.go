@@ -2,8 +2,8 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"fmt"
-	"os"
 
 	"github.com/artilugio0/goverly"
 )
@@ -12,14 +12,20 @@ import (
 var content embed.FS
 
 func main() {
+	configFile := flag.String("f", "config.json", "configuration file")
+	flag.Parse()
+	args := flag.Args()
+
+	fmt.Println(*configFile)
+
 	subcommand := ""
-	if len(os.Args) >= 2 {
-		subcommand = os.Args[1]
+	if len(args) > 0 {
+		subcommand = args[0]
 	}
 
 	switch subcommand {
 	case "overlay":
-		goverly.ServeOverlay("config.json", content)
+		goverly.ServeOverlay(*configFile, content)
 	case "config":
 		fmt.Println("modifying config")
 	}
