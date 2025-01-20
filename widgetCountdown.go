@@ -1,6 +1,7 @@
 package goverly
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -24,6 +25,22 @@ func NewCountdown(textSize, x, y int, t time.Duration) *WidgetCountdown {
 		Y:            y,
 	}
 }
+
 func (wc *WidgetCountdown) Type() string {
 	return "countdown"
+}
+
+func (wc *WidgetCountdown) ApplyCustomConfig(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("countdown widgets needs exactly 1 argument for its custom config")
+	}
+
+	duration, err := time.ParseDuration(args[0])
+	if err != nil {
+		return err
+	}
+
+	wc.EndTime = time.Now().Add(duration).Unix()
+
+	return nil
 }
