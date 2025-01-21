@@ -1,8 +1,7 @@
 # goverly
 
 ## TO DO
-- [x] Migrate canvas to svg
-- [x] Separate each widget in its own function
-- [x] Todo list widget
-- [ ] Timer widget
-- [ ] Basic hot reload on recompilation
+- [ ] Document project
+- [ ] Add options to `goverly overlay` to specify listen address
+- [ ] Add help options to `goverly`
+- [ ] Add a subcommand to `goverly` to generate a default configuration file

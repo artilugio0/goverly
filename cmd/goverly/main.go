@@ -47,7 +47,7 @@ func main() {
 				os.Exit(1)
 			}
 		default:
-			if err := widgetSpecificConfigSet(*configFile, args[1], args[2:]); err != nil {
+			if err := widgetSpecificConfigApply(*configFile, args[1], args[2:]); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -161,7 +161,7 @@ OUTER:
 	return nil
 }
 
-func widgetSpecificConfigSet(configFile, widgetName string, args []string) error {
+func widgetSpecificConfigApply(configFile, widgetName string, args []string) error {
 	config := goverly.Config{}
 
 	configBytes, err := os.ReadFile(configFile)
