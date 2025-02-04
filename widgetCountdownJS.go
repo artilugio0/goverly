@@ -75,6 +75,13 @@ func (wc *WidgetCountdownJS) UpdateConfig(newConfig Widget) []RenderAction {
 		endDate := time.Unix(wc.EndTime, 0)
 		wc.remaining = endDate.Sub(time.Now())
 
+		actions = append(actions, func(svg js.Value) {
+			mins := int(wc.remaining.Minutes())
+			secs := int(wc.remaining.Seconds()) % 60
+			text := fmt.Sprintf("%02d:%02d", mins, secs)
+			wc.textNode.Set("nodeValue", text)
+		})
+
 		if wc.remaining < 0 && !wasDone {
 			actions = append(actions, func(svg js.Value) {
 				wc.timeText.Call("setAttribute", "fill", wc.DoneFontFill)
@@ -90,10 +97,18 @@ func (wc *WidgetCountdownJS) UpdateConfig(newConfig Widget) []RenderAction {
 		}
 	}
 
+	if wc.Stopped != newCfg.Stopped {
+		wc.Stopped = newCfg.Stopped
+	}
+
 	return actions
 }
 
 func (wc *WidgetCountdownJS) Update(timePassed time.Duration) []RenderAction {
+	if wc.Stopped {
+		return nil
+	}
+
 	actions := []RenderAction{}
 	wasDone := wc.remaining < 0
 

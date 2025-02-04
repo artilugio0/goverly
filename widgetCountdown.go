@@ -13,6 +13,7 @@ type WidgetCountdown struct {
 	EndTime      int64  `json:"end_time"`
 	X            int    `json:"x"`
 	Y            int    `json:"y"`
+	Stopped      bool   `json:"stopped"`
 }
 
 func NewCountdown(textSize, x, y int, t time.Duration) *WidgetCountdown {
@@ -23,6 +24,7 @@ func NewCountdown(textSize, x, y int, t time.Duration) *WidgetCountdown {
 		FontSize:     textSize,
 		X:            x,
 		Y:            y,
+		Stopped:      false,
 	}
 }
 
@@ -33,6 +35,11 @@ func (wc *WidgetCountdown) Type() string {
 func (wc *WidgetCountdown) ApplyCustomConfig(args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("countdown widgets needs exactly 1 argument for its custom config")
+	}
+
+	if args[0] == "toggle" {
+		wc.Stopped = !wc.Stopped
+		return nil
 	}
 
 	duration, err := time.ParseDuration(args[0])
